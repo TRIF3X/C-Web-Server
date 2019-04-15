@@ -206,7 +206,7 @@ int main(void)
 
     printf("webserver: waiting for connections on port %s...\n", PORT);
 
-    resp_404(1);
+
 
     // This is the main loop that accepts incoming connections and
     // responds to the request. The main parent process
@@ -231,6 +231,8 @@ int main(void)
         
         // newfd is a new socket descriptor for the new connection.
         // listenfd is still listening for new connections.
+
+        resp_404(newfd);
 
         handle_http_request(newfd, cache);
 
