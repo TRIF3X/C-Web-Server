@@ -160,6 +160,8 @@ void handle_http_request(int fd, struct cache *cache)
 {
     const int request_buffer_size = 65536; // 64K
     char request[request_buffer_size];
+    char method[200];
+    char path[2048];
 
     // Read request
     int bytes_recvd = recv(fd, request, request_buffer_size - 1, 0);
@@ -175,8 +177,24 @@ void handle_http_request(int fd, struct cache *cache)
     ///////////////////
 
     // Read the first two components of the first line of the request 
- 
+    sscanf(request, "%s %s", method, path);
+
     // If GET, handle the get endpoints
+    if (strcmp(method, "GET") == 0)
+    {
+        if (strcmp(path, "/d20") == 0)
+        {
+            get_d20(fd);
+        }
+        else
+        {
+            get_file(fd, cache, path);
+        }
+    }
+    else 
+    {
+        resp_404(fd);
+    }
 
     //    Check if it's /d20 and handle that special case
     //    Otherwise serve the requested file by calling get_file()
@@ -231,8 +249,6 @@ int main(void)
         
         // newfd is a new socket descriptor for the new connection.
         // listenfd is still listening for new connections.
-
-        resp_404(newfd);
 
         handle_http_request(newfd, cache);
 
