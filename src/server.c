@@ -52,17 +52,28 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
 {
     const int max_response_size = 262144;
     char response[max_response_size];
-    int response_length = strlen(body);
 
     // Build HTTP response and store it in response
+    time_t rawtime;
+    struct tm *timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
 
-    sprintf(response, "HTTP/1.1 200 OK\n"
-            "Content-Type: text/html\n"
-            "Content-Length: %d\n"
-            "Connection: close\n"
-            "\n"
-            "%s",
-            response_length, body);
+    int response_length = sprintf(response,
+                                "%s\n"
+                                "Date: %s\n"
+                                "Connection: close\n"
+                                "Content-Length: %d\n"
+                                "Content-Type: %s\n"
+                                "\n"
+                                "%s",
+                                header, asctime(timeinfo), content_length, content_type, body);
+
+            // HTTP/1.1 404 NOT FOUND
+            // Date: Wed Dec 20 13:05:11 PST 2017
+            // Connection: close
+            // Content-Length: 13
+            // Content-Type: text/plain
 
     // Send it all!
     int rv = send(fd, response, response_length, 0);
@@ -194,6 +205,8 @@ int main(void)
     }
 
     printf("webserver: waiting for connections on port %s...\n", PORT);
+
+    resp_404(1);
 
     // This is the main loop that accepts incoming connections and
     // responds to the request. The main parent process
