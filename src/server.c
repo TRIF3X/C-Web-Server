@@ -61,7 +61,7 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
 
     int response_length = sprintf(response,
                                 "%s\n"
-                                "Date: %s\n"
+                                "Date: %s"
                                 "Connection: close\n"
                                 "Content-Length: %d\n"
                                 "Content-Type: %s\n"
@@ -74,6 +74,8 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
             // Connection: close
             // Content-Length: 13
             // Content-Type: text/plain
+
+    printf("%s\n", response);
 
     // Send it all!
     int rv = send(fd, response, response_length, 0);
@@ -93,15 +95,14 @@ void get_d20(int fd)
 {
     // Generate a random number between 1 and 20 inclusive
     
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
+    srand(time(NULL));
+    int num = (rand() % 20) + 1;
+    char response[8];
+    sprintf(response, "%d\n", num);
 
     // Use send_response() to send it back as text/plain data
 
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
+    send_response(fd, "HTTP/1.1 200 OK", "text/plain", response, strlen(response));
 }
 
 /**
@@ -158,7 +159,7 @@ char *find_start_of_body(char *header)
  */
 void handle_http_request(int fd, struct cache *cache)
 {
-    const int request_buffer_size = 65536; // 64K
+    const int request_buffer_size = 262144; 
     char request[request_buffer_size];
     char method[200];
     char path[2048];
@@ -171,11 +172,6 @@ void handle_http_request(int fd, struct cache *cache)
         return;
     }
 
-
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
-
     // Read the first two components of the first line of the request 
     sscanf(request, "%s %s", method, path);
 
@@ -185,19 +181,18 @@ void handle_http_request(int fd, struct cache *cache)
         if (strcmp(path, "/d20") == 0)
         {
             get_d20(fd);
+            return;
         }
         else
         {
             get_file(fd, cache, path);
+            return;
         }
     }
     else 
     {
         resp_404(fd);
     }
-
-    //    Check if it's /d20 and handle that special case
-    //    Otherwise serve the requested file by calling get_file()
 
 
     // (Stretch) If POST, handle the post request
