@@ -65,9 +65,8 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
                                 "Connection: close\n"
                                 "Content-Length: %d\n"
                                 "Content-Type: %s\n"
-                                "\n"
-                                "%s",
-                                header, asctime(timeinfo), content_length, content_type, body);
+                                "\n",
+                                header, asctime(timeinfo), content_length, content_type);
 
             // HTTP/1.1 404 NOT FOUND
             // Date: Wed Dec 20 13:05:11 PST 2017
@@ -75,10 +74,12 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
             // Content-Length: 13
             // Content-Type: text/plain
 
+    memcpy(response + response_length, body, content_length);
+
     printf("%s\n", response);
 
     // Send it all!
-    int rv = send(fd, response, response_length, 0);
+    int rv = send(fd, response, response_length + content_length , 0);
 
     if (rv < 0) {
         perror("send");
@@ -136,9 +137,27 @@ void resp_404(int fd)
  */
 void get_file(int fd, struct cache *cache, char *request_path)
 {
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
+    char filepath[4096];
+    struct file_data *filedata;
+
+    snprintf(filepath, sizeof filepath, "%s%s", SERVER_ROOT, request_path);
+
+    printf("Server root: %s", SERVER_ROOT);
+    printf("file path: %s", filepath);
+
+    char *mime_type;
+
+    filedata = file_load(filepath);
+    if (filedata == NULL)
+    {
+        resp_404(fd);
+    }
+    else 
+    {
+        mime_type = mime_type_get(filepath);
+        send_response(fd, "HTTP/1.1 200 OK", mime_type, filedata->data, filedata->size);
+        file_free(filedata);
+    }
 }
 
 /**
