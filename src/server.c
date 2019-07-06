@@ -13,7 +13,7 @@
  * 
  *    curl -D - -X POST -H 'Content-Type: text/plain' -d 'Hello, sample data!' http://localhost:3490/save
  * 
- * (Posting data is harder to test from a browser)
+ * (Posting data is harder to test from a browser.)
  */
 
 #include <stdio.h>
@@ -54,13 +54,32 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
     char response[max_response_size];
 
     // Build HTTP response and store it in response
+    time_t rawtime;
+    struct tm *timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
 
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
+    int response_length = sprintf(response,
+                                "%s\n"
+                                "Date: %s"
+                                "Connection: close\n"
+                                "Content-Length: %d\n"
+                                "Content-Type: %s\n"
+                                "\n",
+                                header, asctime(timeinfo), content_length, content_type);
+
+            // HTTP/1.1 404 NOT FOUND
+            // Date: Wed Dec 20 13:05:11 PST 2017
+            // Connection: close
+            // Content-Length: 13
+            // Content-Type: text/plain
+
+    memcpy(response + response_length, body, content_length);
+
+    printf("%s\n", response);
 
     // Send it all!
-    int rv = send(fd, response, response_length, 0);
+    int rv = send(fd, response, response_length + content_length , 0);
 
     if (rv < 0) {
         perror("send");
@@ -77,15 +96,14 @@ void get_d20(int fd)
 {
     // Generate a random number between 1 and 20 inclusive
     
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
+    srand(time(NULL));
+    int num = (rand() % 20) + 1;
+    char response[8];
+    sprintf(response, "%d\n", num);
 
     // Use send_response() to send it back as text/plain data
 
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
+    send_response(fd, "HTTP/1.1 200 OK", "text/plain", response, strlen(response));
 }
 
 /**
@@ -119,9 +137,27 @@ void resp_404(int fd)
  */
 void get_file(int fd, struct cache *cache, char *request_path)
 {
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
+    char filepath[4096];
+    struct file_data *filedata;
+
+    snprintf(filepath, sizeof filepath, "%s%s", SERVER_ROOT, request_path);
+
+    printf("Server root: %s", SERVER_ROOT);
+    printf("file path: %s", filepath);
+
+    char *mime_type;
+
+    filedata = file_load(filepath);
+    if (filedata == NULL)
+    {
+        resp_404(fd);
+    }
+    else 
+    {
+        mime_type = mime_type_get(filepath);
+        send_response(fd, "HTTP/1.1 200 OK", mime_type, filedata->data, filedata->size);
+        file_free(filedata);
+    }
 }
 
 /**
@@ -142,8 +178,10 @@ char *find_start_of_body(char *header)
  */
 void handle_http_request(int fd, struct cache *cache)
 {
-    const int request_buffer_size = 65536; // 64K
+    const int request_buffer_size = 262144; 
     char request[request_buffer_size];
+    char method[200];
+    char path[2048];
 
     // Read request
     int bytes_recvd = recv(fd, request, request_buffer_size - 1, 0);
@@ -153,17 +191,27 @@ void handle_http_request(int fd, struct cache *cache)
         return;
     }
 
-
-    ///////////////////
-    // IMPLEMENT ME! //
-    ///////////////////
-
     // Read the first two components of the first line of the request 
- 
-    // If GET, handle the get endpoints
+    sscanf(request, "%s %s", method, path);
 
-    //    Check if it's /d20 and handle that special case
-    //    Otherwise serve the requested file by calling get_file()
+    // If GET, handle the get endpoints
+    if (strcmp(method, "GET") == 0)
+    {
+        if (strcmp(path, "/d20") == 0)
+        {
+            get_d20(fd);
+            return;
+        }
+        else
+        {
+            get_file(fd, cache, path);
+            return;
+        }
+    }
+    else 
+    {
+        resp_404(fd);
+    }
 
 
     // (Stretch) If POST, handle the post request
@@ -189,6 +237,8 @@ int main(void)
     }
 
     printf("webserver: waiting for connections on port %s...\n", PORT);
+
+
 
     // This is the main loop that accepts incoming connections and
     // responds to the request. The main parent process
